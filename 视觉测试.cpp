@@ -24,18 +24,13 @@ int main()
 	while (1)
 	{
 		cap >> frame;
+		if (frame.empty())break;
 		gray.create(frame.rows, frame.cols, CV_8UC1);
 		MatIterator_<Vec3b> it1;
 		MatIterator_<uchar> it2 = gray.begin<uchar>();
 		for (it1 = frame.begin<Vec3b>(); it1 != frame.end<Vec3b>(); it1++)
 		{
-			if (abs((*it1)[0] - (*it1)[1]) > 3)
-			{
-				*it2 = 0;
-				it2++;
-				continue;
-			}
-			if ((*it1)[2] / (float)(*it1)[1] != 1)
+			if (abs((*it1)[0] - (*it1)[1])>0  || (*it1)[0] < 180 || ((*it1)[2] < (*it1)[1] ))
 			{
 				*it2 = 0;
 				it2++;
@@ -44,61 +39,46 @@ int main()
 			*it2 = 255;
 			it2++;
 		}
+		imshow("gra", gray);
+		cvWaitKey(3);
 		vector<Vec4i> hierarchy;
-		findContours(gray, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);		//CV_CHAIN_APPROX_SIMPLE ； CV_CHAIN_APPROX_NONE
-
-		//对每个轮廓的点集 找逼近多边形  
-		vector<vector<Point>> approxPoint(contours.size());
-		for (int i = 0; i < (int)contours.size(); i++)
-		{
-			approxPolyDP(contours[i], approxPoint[i], 1, true);
-		}
-
-		/******************************************绘制曲线********************************************/
-		//用绘制轮廓的函数   绘制曲线  
-		Mat drawImage = Mat::zeros(gray.size(), CV_8UC1);
-		for (int i = 0; i < (int)contours.size(); i++)
-		{
-			if (contours[i].size() < 40)continue;
-			drawContours(drawImage, contours, i, Scalar(255), 1);
-
-		}
-		//删除太少的元素
-		vector<vector<Point>>::iterator itr = contours.begin();
-		while (itr != contours.end())
-		{
-			if ((*itr).size() < 35)
-				itr = contours.erase(itr);
-			else
-				itr++;
-		}
+		findContours(gray, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);		//CV_CHAIN_APPROX_SIMPLE ； CV_CHAIN_APPROX_NONE
 
 		/// 对每个找到的轮廓创建可倾斜的边界框 
 		vector<RotatedRect> minRect(contours.size());
 
 		for (int i = 0; i < contours.size(); i++)
 		{
+			float max_height = 0.0;
 			RotatedRect Rect = minAreaRect(Mat(contours[i]));
-			float ang = Rect.angle;
-			if (Rect.size.height < Rect.size.width)
-				ang += 90;
-			if (ang > -30 && ang < 20)
-				minRect[i] = Rect;
-			cout << "angle" << ang << endl;
+			if (Rect.size.height < Rect.size.width)		//如果宽大于长，重新计算
+			{
+				Rect.angle += 90;
+				float s = Rect.size.height;
+				Rect.size.height = Rect.size.width;
+				Rect.size.width = s;
+				if (Rect.size.height > max_height)
+					max_height = Rect.size.height;
+			}
+			float ratial = Rect.size.height / (float)Rect.size.width;
 
+			if (Rect.angle > -30 && Rect.angle < 20 && (ratial > 3.2) && (ratial < 8))		//筛选角度、长宽比
+				if ((Scalar)frame.at<Vec3b>(Rect.center) == Scalar(255, 255, 255))		//中心为纯白色
+					if (Rect.size.height > (max_height / 2))		//不太小
+					{
+						minRect[i] = Rect;
+					}
 		}
-		/// 绘出轮廓及其可倾斜的边界框和边界椭圆  
-		Mat drawing = Mat::zeros(gray.size(), CV_8UC1);
+		/// 绘出轮廓及其可倾斜的边界框
 		for (int i = 0; i < contours.size(); i++)
 		{
 			// rotated rectangle  
 			Point2f rect_points[4]; minRect[i].points(rect_points);
 			for (int j = 0; j < 4; j++)
-				line(drawing, rect_points[j], rect_points[(j + 1) % 4], Scalar(255), 1, 8);
+				line(frame, rect_points[j], rect_points[(j + 1) % 4], Scalar(255,60,80), 2, 8);
 		}
 
 		/// 结果在窗体中显示  
-		imshow("Contours", drawing);
 		imshow("show", frame);
 		cvWaitKey(10);
 
