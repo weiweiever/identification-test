@@ -31,7 +31,7 @@ int main()
 		MatIterator_<uchar> it2 = gray.begin<uchar>();
 		for (it1 = frame.begin<Vec3b>(); it1 != frame.end<Vec3b>(); it1++)
 		{
-			if (abs((*it1)[0] - (*it1)[1])>0  || (*it1)[0] < 160 || ((*it1)[2] < (*it1)[1] ))
+			if (abs((*it1)[0] - (*it1)[1])>0  || (*it1)[0] < 140 || ((*it1)[2] < (*it1)[1] ))
 			{
 				*it2 = 0;
 				it2++;
@@ -90,17 +90,32 @@ int main()
 		for (int i = 0; i < 10; i++)
 			cout << endl;
 
-		Point2f target = findtarget(minRect);
+		Point2f target= Point2f(0, 0);
+
+
+		if (minRect.size()>2)
+			for (int i = 0; i < minRect.size() - 1; i++)
+			{
+				for (int j = i + 1; j < minRect.size(); j++)
+				{
+					if (abs(minRect[i].angle - minRect[j].angle) < 6)		//角度
+						if (abs(minRect[i].center.y - minRect[j].center.y) / max(minRect[i].size.height, minRect[j].size.height) < 0.5)	//竖直距离
+							if (abs(minRect[i].size.height - minRect[j].size.height) / (minRect[i].size.height + minRect[j].size.height) < 0.3)		//高度差
+								if (abs(minRect[i].center.x - minRect[j].center.x) / minRect[i].size.height < 3.5)
+									if (abs(minRect[i].center.x - minRect[j].center.x) / minRect[i].size.height > 2)		//目标板的长宽比
+										target=Point2f((minRect[i].center.x + minRect[j].center.x) / (float)2, (minRect[i].center.y + minRect[j].center.y) / (float)2);
+										
+				}
+			}
+
+
 		if (target != Point2f(0, 0))	//画出射击目标
 			circle(frame, target, 20, Scalar(30, 255, 30), 2);
 
 		imshow("show", frame);
 		cvWaitKey(5);
-		/*while (1)
-		{
-			if (waitKey(0) == 27)
-				break;
-		}*/
+		if (waitKey(10) == 27)
+			system("pause");
 		
 	}
 
@@ -108,24 +123,4 @@ int main()
     return 0;
 }
 
-Point2f findtarget(const vector<RotatedRect>&  re)
-{
-	if(re.size()>2)
-	for (int i = 0; i < re.size() - 1; i++)
-	{
-		for (int j = i + 1; j < re.size(); j++)
-		{
-			if (abs(re[i].angle - re[j].angle) < 10)		//角度
-				if (abs(re[i].center.y - re[j].center.y) / re[i].size.height < 0.2)	//竖直距离
-					if (abs(re[i].size.height - re[j].size.height) / (re[i].size.height + re[j].size.height) < 0.3)		//高度差
-						if (abs(re[i].center.x - re[j].center.x) / re[i].size.height < 3.5)
-							if (abs(re[i].center.x - re[j].center.x) / re[i].size.height > 2)		//目标板的长宽比
-							{
-								Point2f p((re[i].center.x + re[j].center.x) / (float)2, (re[i].center.y + re[j].center.y) / (float)2);
-								return p;
-							}
-		}
-	}
-	return Point2f(0, 0);
-}
 	
