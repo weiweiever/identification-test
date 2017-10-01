@@ -13,7 +13,6 @@ using namespace cv;
 
 Mat frame,gray;
 vector<vector<Point> > contours;
-Point2f findtarget(const vector<RotatedRect>&  re);
 
 int main()
 {
@@ -22,6 +21,8 @@ int main()
 	{
 		cout << "无法加载此文件." << endl;
 	}
+	VideoWriter writer("G://im//201.avi", -1, 30,Size(640,480),true) ;
+
 	while (1)
 	{
 		cap >> frame;
@@ -29,9 +30,9 @@ int main()
 		gray.create(frame.rows, frame.cols, CV_8UC1);
 		MatIterator_<Vec3b> it1;
 		MatIterator_<uchar> it2 = gray.begin<uchar>();
-		for (it1 = frame.begin<Vec3b>(); it1 != frame.end<Vec3b>(); it1++)
+		for (it1 = frame.begin<Vec3b>(); it1 != frame.end<Vec3b>(); it1++)		//二值化
 		{
-			if (abs((*it1)[0] - (*it1)[1])>0  || (*it1)[0] < 140 || ((*it1)[2] < (*it1)[1] ))
+			if (abs((*it1)[0] - (*it1)[1])>0  || (*it1)[0] < 100 || ((*it1)[2] < (*it1)[1] ))
 			{
 				*it2 = 0;
 				it2++;
@@ -43,13 +44,14 @@ int main()
 		imshow("gray", gray);
 		cvWaitKey(3);
 		vector<Vec4i> hierarchy;
-		findContours(gray, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);		//CV_CHAIN_APPROX_SIMPLE ； CV_CHAIN_APPROX_NONE
+		findContours(gray, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);		//CV_CHAIN_APPROX_SIMPLE ； CV_CHAIN_APPROX_NONE
 
 		/// 对每个找到的轮廓创建可倾斜的边界框 
 		vector<RotatedRect> minRect;
 
 		for (int i = 0; i < contours.size(); i++)
 		{
+			if (contours[i].size() < 4)continue;
 			float max_height = 0.0;
 			RotatedRect Rect = minAreaRect(Mat(contours[i]));
 			if (Rect.size.height < Rect.size.width)		//如果宽大于长，重新计算
@@ -63,7 +65,7 @@ int main()
 			}
 			float ratial = Rect.size.height / (float)Rect.size.width;
 
-			if (Rect.angle > -30 && Rect.angle < 20 && (ratial > 3.2) && (ratial < 8))		//筛选角度、长宽比
+			if (Rect.angle > -30 && Rect.angle < 20 && (ratial > 2.4) && (ratial < 8))		//筛选角度、长宽比
 				if ((Scalar)frame.at<Vec3b>(Rect.center) == Scalar(255, 255, 255))		//中心为纯白色
 					if (Rect.size.area() != 0.0)
 						if (Rect.size.height > (max_height / 2))		//不太小
@@ -98,8 +100,8 @@ int main()
 			{
 				for (int j = i + 1; j < minRect.size(); j++)
 				{
-					if (abs(minRect[i].angle - minRect[j].angle) < 6)		//角度
-						if (abs(minRect[i].center.y - minRect[j].center.y) / max(minRect[i].size.height, minRect[j].size.height) < 0.5)	//竖直距离
+					if (abs(minRect[i].angle - minRect[j].angle) < 7.5)		//角度
+						if (abs(minRect[i].center.y - minRect[j].center.y) / max(minRect[i].size.height, minRect[j].size.height) < 0.3)	//竖直距离
 							if (abs(minRect[i].size.height - minRect[j].size.height) / (minRect[i].size.height + minRect[j].size.height) < 0.3)		//高度差
 								if (abs(minRect[i].center.x - minRect[j].center.x) / minRect[i].size.height < 3.5)
 									if (abs(minRect[i].center.x - minRect[j].center.x) / minRect[i].size.height > 2)		//目标板的长宽比
@@ -114,9 +116,7 @@ int main()
 
 		imshow("show", frame);
 		cvWaitKey(5);
-		if (waitKey(10) == 27)
-			system("pause");
-		
+		writer << frame;
 	}
 
 	system("pause");
